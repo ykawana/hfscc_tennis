@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "HFSCC Tennis - Datastore (DynamoDB)"
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name
+  ProjectName:
+    Type: String
+    Default: hfscc-tennis
+    Description: Project name prefix for resource naming
+
+Resources:
+  # -------------------------------------------------------
+  # DynamoDB Tables (詳細は Issue #4 で実装)
+  # -------------------------------------------------------
+
+  MembersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-table-${Environment}-members"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: memberId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: memberId
+          KeyType: HASH
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  SchedulesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-table-${Environment}-schedules"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: scheduleId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: scheduleId
+          KeyType: HASH
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  AnnouncementsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-table-${Environment}-announcements"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: announcementId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: announcementId
+          KeyType: HASH
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  RulesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-table-${Environment}-rules"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ruleId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ruleId
+          KeyType: HASH
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  MembersTableName:
+    Description: Members table name
+    Value: !Ref MembersTable
+    Export:
+      Name: !Sub "${ProjectName}-table-${Environment}-memberstablename"
+  MembersTableArn:
+    Description: Members table ARN
+    Value: !GetAtt MembersTable.Arn
+    Export:
+      Name: !Sub "${ProjectName}-table-${Environment}-memberstablearn"
+
+  SchedulesTableName:
+    Description: Schedules table name
+    Value: !Ref SchedulesTable
+    Export:
+      Name: !Sub "${ProjectName}-table-${Environment}-schedulestablename"
+  SchedulesTableArn:
+    Description: Schedules table ARN
+    Value: !GetAtt SchedulesTable.Arn
+    Export:
+      Name: !Sub "${ProjectName}-table-${Environment}-schedulestablearn"
+
+  AnnouncementsTableName:
+    Description: Announcements table name
+    Value: !Ref AnnouncementsTable
+    Export:
+      Name: !Sub "${ProjectName}-table-${Environment}-announcementstablename"
+  AnnouncementsTableArn:
+    Description: Announcements table ARN
+    Value: !GetAtt AnnouncementsTable.Arn
+    Export:
+      Name: !Sub "${ProjectName}-table-${Environment}-announcementstablearn"
+
+  RulesTableName:
+    Description: Rules table name
+    Value: !Ref RulesTable
+    Export:
+      Name: !Sub "${ProjectName}-table-${Environment}-rulestablename"
+  RulesTableArn:
+    Description: Rules table ARN
+    Value: !GetAtt RulesTable.Arn
+    Export:
+      Name: !Sub "${ProjectName}-table-${Environment}-rulestablearn"

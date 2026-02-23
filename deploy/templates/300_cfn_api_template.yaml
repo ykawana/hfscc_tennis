@@ -1,0 +1,196 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "HFSCC Tennis - API (API Gateway + Lambda)"
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name
+  ProjectName:
+    Type: String
+    Default: hfscc-tennis
+    Description: Project name prefix for resource naming
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket for Lambda deployment packages
+  LambdaS3Key:
+    Type: String
+    Default: lambda/handler.zip
+    Description: S3 key for Lambda deployment package
+
+Resources:
+  # -------------------------------------------------------
+  # IAM Role for Lambda
+  # -------------------------------------------------------
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-role-${Environment}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-memberstablearn"
+                  - Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-schedulestablearn"
+                  - Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-announcementstablearn"
+                  - Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-rulestablearn"
+                  - !Sub
+                    - "${TableArn}/index/*"
+                    - TableArn:
+                        Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-memberstablearn"
+                  - !Sub
+                    - "${TableArn}/index/*"
+                    - TableArn:
+                        Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-schedulestablearn"
+                  - !Sub
+                    - "${TableArn}/index/*"
+                    - TableArn:
+                        Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-announcementstablearn"
+                  - !Sub
+                    - "${TableArn}/index/*"
+                    - TableArn:
+                        Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-rulestablearn"
+        - PolicyName: CognitoAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:AdminCreateUser
+                  - cognito-idp:AdminDeleteUser
+                  - cognito-idp:AdminUpdateUserAttributes
+                  - cognito-idp:AdminAddUserToGroup
+                  - cognito-idp:ListUsersInGroup
+                Resource:
+                  Fn::ImportValue: !Sub "${ProjectName}-userpool-${Environment}-userpoolarn"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # -------------------------------------------------------
+  # API Gateway
+  # -------------------------------------------------------
+
+  ApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "${ProjectName}-api-${Environment}"
+      Description: HFSCC Tennis API
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # Cognito Authorizer
+  CognitoAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: CognitoAuthorizer
+      Type: COGNITO_USER_POOLS
+      RestApiId: !Ref ApiGateway
+      IdentitySource: method.request.header.Authorization
+      ProviderARNs:
+        - Fn::ImportValue: !Sub "${ProjectName}-userpool-${Environment}-userpoolarn"
+
+  # -------------------------------------------------------
+  # Lambda Function (詳細は各機能 Issue で実装)
+  # -------------------------------------------------------
+
+  ApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-function-${Environment}-api-handler"
+      Runtime: provided.al2023
+      Handler: bootstrap
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaS3Key
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          MEMBERS_TABLE:
+            Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-memberstablename"
+          SCHEDULES_TABLE:
+            Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-schedulestablename"
+          ANNOUNCEMENTS_TABLE:
+            Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-announcementstablename"
+          RULES_TABLE:
+            Fn::ImportValue: !Sub "${ProjectName}-table-${Environment}-rulestablename"
+          USER_POOL_ID:
+            Fn::ImportValue: !Sub "${ProjectName}-userpool-${Environment}-userpoolid"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Lambda Permission for API Gateway
+  ApiFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ApiFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*"
+
+  # API Gateway Deployment (各機能 Issue でリソース追加後に更新)
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref ApiGateway
+      Description: Initial deployment
+
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: !Ref Environment
+      RestApiId: !Ref ApiGateway
+      DeploymentId: !Ref ApiDeployment
+
+Outputs:
+  ApiGatewayId:
+    Description: API Gateway ID
+    Value: !Ref ApiGateway
+    Export:
+      Name: !Sub "${ProjectName}-api-${Environment}-apigatewayid"
+  ApiGatewayUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+  ApiFunctionArn:
+    Description: API Lambda function ARN
+    Value: !GetAtt ApiFunction.Arn
+    Export:
+      Name: !Sub "${ProjectName}-function-${Environment}-apifunctionarn"
+  CognitoAuthorizerId:
+    Description: Cognito Authorizer ID
+    Value: !Ref CognitoAuthorizer
+    Export:
+      Name: !Sub "${ProjectName}-userpool-${Environment}-CognitoAuthorizerId"

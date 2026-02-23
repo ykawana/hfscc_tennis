@@ -1,0 +1,174 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "HFSCC Tennis - Hosting (S3 + CloudFront)"
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name
+  ProjectName:
+    Type: String
+    Default: hfscc-tennis
+    Description: Project name prefix for resource naming
+
+Resources:
+  # -------------------------------------------------------
+  # S3 Buckets
+  # -------------------------------------------------------
+
+  # SPA (front-end-service) 用バケット
+  SpaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-bucket-${Environment}-spa"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  SpaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SpaBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${SpaBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  # 静的サイト (front-end-static) 用バケット
+  StaticBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-bucket-${Environment}-static"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  StaticBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StaticBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${StaticBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  # -------------------------------------------------------
+  # CloudFront
+  # -------------------------------------------------------
+
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${ProjectName}-originaccesscontrol-${Environment}"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Comment: !Sub "${ProjectName}-distribution-${Environment} Distribution"
+
+        Origins:
+          # 静的サイト（デフォルトオリジン）
+          - Id: StaticOrigin
+            DomainName: !GetAtt StaticBucket.RegionalDomainName
+            OriginAccessControlId: !Ref CloudFrontOAC
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+
+          # SPA (/service/* パス)
+          - Id: SpaOrigin
+            DomainName: !GetAtt SpaBucket.RegionalDomainName
+            OriginAccessControlId: !Ref CloudFrontOAC
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+
+        DefaultCacheBehavior:
+          TargetOriginId: StaticOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          Compress: true
+
+        CacheBehaviors:
+          - PathPattern: /service/*
+            TargetOriginId: SpaOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+            Compress: true
+
+        # SPA ルーティング対応: 403/404 → /service/index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /service/index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /service/index.html
+            ErrorCachingMinTTL: 0
+
+        PriceClass: PriceClass_200
+
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  SpaBucketName:
+    Description: SPA S3 bucket name
+    Value: !Ref SpaBucket
+    Export:
+      Name: !Sub "${ProjectName}-bucket-${Environment}-SpaBucketName"
+  StaticBucketName:
+    Description: Static site S3 bucket name
+    Value: !Ref StaticBucket
+    Export:
+      Name: !Sub "${ProjectName}-bucket-${Environment}-StaticBucketName"
+  CloudFrontDistributionId:
+    Description: CloudFront distribution ID
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub "${ProjectName}-distribution-${Environment}-CloudFrontDistributionId"
+  CloudFrontDomainName:
+    Description: CloudFront domain name
+    Value: !GetAtt CloudFrontDistribution.DomainName
