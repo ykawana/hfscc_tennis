@@ -1,0 +1,13 @@
+/* 東深沢スポーツ・文化クラブ テニス部 - 静的サイト用スタイルシート */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
