@@ -1,0 +1,57 @@
+{
+    "enabledPlugins": {
+        "gopls-lsp@claude-plugins-official": true
+    },
+    "permissions": {
+        "allow": [
+            "Bash(go:*)",
+            "Bash(make:*)",
+            "Bash(aws:*)",
+            "Bash(sam:*)",
+            "Bash(glab:*)",
+            "Bash(git:*)",
+            "Bash(docker:*)",
+            "Bash(grep:*)",
+            "Bash(find:*)",
+            "Bash(cat:*)",
+            "Bash(ls:*)"
+        ],
+        "deny": [
+            "Bash(*git stash*)",
+            "Bash(*git checkout*)",
+            "Bash(*git reset*)",
+            "Bash(*git clean*)",
+            "Bash(*git restore*)",
+            "Bash(*git merge*)",
+            "Bash(*git rebase*)",
+            "Bash(*git cherry-pick*)",
+            "Bash(*git push*)",
+            "Bash(*git branch -d*)",
+            "Bash(*git branch -D*)",
+            "Bash(*kill *)",
+            "Bash(*killall *)",
+            "Bash(*pkill *)",
+            "Bash(rm -rf:*)",
+            "Read(.env.*)",
+            "Write(.env.*)"
+        ],
+        "plansDirectory": "docs/agent/plans",
+        "language": "Japanese",
+        "env": {
+            "ENABLE_TOOL_SEARCH": "true"
+        },
+        "hooks": {
+            "PostToolUse": [
+                {
+                    "matcher": "Edit|Write",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "jq -r '.tool_input.file_path' | { read file_path; if [[ \"$file_path\" == *.go ]]; then gofmt -w \"$file_path\" && goimports -w \"$file_path\"; fi; }"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

@@ -38,12 +38,6 @@ Resources:
         - Name: email
           Required: true
           Mutable: true
-        - Name: custom:role
-          AttributeDataType: String
-          Mutable: true
-          StringAttributeConstraints:
-            MinLength: "1"
-            MaxLength: "20"
       UserPoolTags:
         Project: !Ref ProjectName
         Environment: !Ref Environment
