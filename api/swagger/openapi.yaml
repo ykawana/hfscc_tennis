@@ -1,11 +1,250 @@
-openapi: "3.0.3"
+openapi: 3.0.3
 info:
   title: 東深沢テニス部 API
   description: 東深沢スポーツ・文化クラブ テニス部 会員向け API
-  version: "0.1.0"
-
+  version: 0.1.0
 servers:
   - url: https://api.example.com
     description: Production
-
-paths: {}
+paths:
+  /members:
+    post:
+      summary: 会員登録
+      description: 管理者が新規会員を登録する。Cognito ユーザーを作成し、DynamoDB に会員情報を保存する。
+      operationId: createMember
+      tags:
+        - Members
+      security:
+        - CognitoAuthorizer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - displayName
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: メールアドレス（Cognito ユーザー名として使用）
+                  example: hanako@example.com
+                displayName:
+                  type: string
+                  description: 表示名
+                  example: 田中 花子
+      responses:
+        '201':
+          description: 会員登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - memberId
+                  - email
+                  - displayName
+                  - status
+                  - createdAt
+                  - updatedAt
+                properties:
+                  memberId:
+                    type: string
+                    format: uuid
+                    description: 会員ID（UUID）
+                    example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                  email:
+                    type: string
+                    format: email
+                    description: メールアドレス（Cognito ユーザー名と一致）
+                    example: hanako@example.com
+                  displayName:
+                    type: string
+                    description: 表示名
+                    example: 田中 花子
+                  status:
+                    type: string
+                    enum:
+                      - ACTIVE
+                      - INACTIVE
+                    description: 会員ステータス
+                    example: ACTIVE
+                  createdAt:
+                    type: string
+                    format: date-time
+                    description: 登録日時（ISO 8601）
+                    example: '2024-04-01T09:00:00Z'
+                  updatedAt:
+                    type: string
+                    format: date-time
+                    description: 更新日時（ISO 8601）
+                    example: '2024-04-01T09:00:00Z'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    type: string
+                    description: エラーコード
+                    example: VALIDATION_ERROR
+                  message:
+                    type: string
+                    description: エラーメッセージ
+                    example: email は必須です
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    type: string
+                    description: エラーコード
+                    example: VALIDATION_ERROR
+                  message:
+                    type: string
+                    description: エラーメッセージ
+                    example: email は必須です
+        '403':
+          description: 権限エラー（管理者以外）
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    type: string
+                    description: エラーコード
+                    example: VALIDATION_ERROR
+                  message:
+                    type: string
+                    description: エラーメッセージ
+                    example: email は必須です
+        '409':
+          description: メールアドレス重複
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    type: string
+                    description: エラーコード
+                    example: VALIDATION_ERROR
+                  message:
+                    type: string
+                    description: エラーメッセージ
+                    example: email は必須です
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    type: string
+                    description: エラーコード
+                    example: VALIDATION_ERROR
+                  message:
+                    type: string
+                    description: エラーメッセージ
+                    example: email は必須です
+components:
+  schemas:
+    Member:
+      type: object
+      required:
+        - memberId
+        - email
+        - displayName
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        memberId:
+          type: string
+          format: uuid
+          description: 会員ID（UUID）
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        email:
+          type: string
+          format: email
+          description: メールアドレス（Cognito ユーザー名と一致）
+          example: hanako@example.com
+        displayName:
+          type: string
+          description: 表示名
+          example: 田中 花子
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+          description: 会員ステータス
+          example: ACTIVE
+        createdAt:
+          type: string
+          format: date-time
+          description: 登録日時（ISO 8601）
+          example: '2024-04-01T09:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新日時（ISO 8601）
+          example: '2024-04-01T09:00:00Z'
+    MemberCreateRequest:
+      type: object
+      required:
+        - email
+        - displayName
+      properties:
+        email:
+          type: string
+          format: email
+          description: メールアドレス（Cognito ユーザー名として使用）
+          example: hanako@example.com
+        displayName:
+          type: string
+          description: 表示名
+          example: 田中 花子
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: エラーコード
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: エラーメッセージ
+          example: email は必須です
+  securitySchemes:
+    CognitoAuthorizer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

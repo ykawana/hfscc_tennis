@@ -1,0 +1,57 @@
+Member:
+  type: object
+  required:
+    - memberId
+    - email
+    - displayName
+    - status
+    - createdAt
+    - updatedAt
+  properties:
+    memberId:
+      type: string
+      format: uuid
+      description: 会員ID（UUID）
+      example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    email:
+      type: string
+      format: email
+      description: メールアドレス（Cognito ユーザー名と一致）
+      example: "hanako@example.com"
+    displayName:
+      type: string
+      description: 表示名
+      example: "田中 花子"
+    status:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+      description: 会員ステータス
+      example: "ACTIVE"
+    createdAt:
+      type: string
+      format: date-time
+      description: 登録日時（ISO 8601）
+      example: "2024-04-01T09:00:00Z"
+    updatedAt:
+      type: string
+      format: date-time
+      description: 更新日時（ISO 8601）
+      example: "2024-04-01T09:00:00Z"
+
+MemberCreateRequest:
+  type: object
+  required:
+    - email
+    - displayName
+  properties:
+    email:
+      type: string
+      format: email
+      description: メールアドレス（Cognito ユーザー名として使用）
+      example: "hanako@example.com"
+    displayName:
+      type: string
+      description: 表示名
+      example: "田中 花子"

@@ -1,0 +1,27 @@
+openapi: "3.0.3"
+info:
+  title: 東深沢テニス部 API
+  description: 東深沢スポーツ・文化クラブ テニス部 会員向け API
+  version: "0.1.0"
+
+servers:
+  - url: https://api.example.com
+    description: Production
+
+paths:
+  /members:
+    $ref: "./openapi/paths/members.yaml#/members"
+
+components:
+  schemas:
+    Member:
+      $ref: "./openapi/components/schemas/member.yaml#/Member"
+    MemberCreateRequest:
+      $ref: "./openapi/components/schemas/member.yaml#/MemberCreateRequest"
+    ErrorResponse:
+      $ref: "./openapi/components/schemas/error.yaml#/ErrorResponse"
+  securitySchemes:
+    CognitoAuthorizer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

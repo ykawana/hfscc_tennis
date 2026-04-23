@@ -1,0 +1,13 @@
+{
+  "name": "hfscc-tennis-api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "merge": "swagger-merger -i openapi.yaml -o swagger/openapi.yaml",
+    "merge:watch": "nodemon --watch openapi.yaml --watch openapi/ --ext yaml --exec 'npm run merge'"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0",
+    "swagger-merger": "^1.5.4"
+  }
+}
