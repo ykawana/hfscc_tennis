@@ -1,0 +1,43 @@
+/* Design tokens — edit here to retheme the app. */
+:root {
+  /* Dark (default) */
+  --bg:            #0f1115;
+  --bg-2:          #14171d;
+  --panel:         #1a1e26;
+  --panel-2:       #222732;
+  --border:        rgba(232, 230, 223, 0.08);
+  --border-strong: rgba(232, 230, 223, 0.16);
+  --fg:            #e8e6df;
+  --fg-muted:      #a6a39a;
+  --fg-dim:        #6f6c63;
+  --accent:        oklch(0.78 0.06 20);
+  --accent-soft:   oklch(0.78 0.06 20 / 0.14);
+  --accent-ink:    #0f1115;
+  --danger:        oklch(0.72 0.12 28);
+  --success:       oklch(0.78 0.09 155);
+
+  --radius-sm: 8px;
+  --radius:    14px;
+  --radius-lg: 20px;
+
+  --font-sans:  'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Instrument Serif', 'Noto Serif JP', serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow:    0 24px 60px -20px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="light"] {
+  --bg:            #ffffff;
+  --bg-2:          #f5f5f2;
+  --panel:         #ffffff;
+  --panel-2:       #f7f6f2;
+  --border:        rgba(15, 17, 21, 0.08);
+  --border-strong: rgba(15, 17, 21, 0.16);
+  --fg:            #151821;
+  --fg-muted:      #5d5d55;
+  --fg-dim:        #97958c;
+  --accent-ink:    #ffffff;
+  --shadow:        0 24px 60px -30px rgba(15, 17, 21, 0.18), 0 1px 3px rgba(15, 17, 21, 0.04);
+}
