@@ -1,76 +1,136 @@
-# [Choice] Go variant. Keep OS pinned (bookworm) and float only Go minor version.
-# To refresh the base image locally before rebuild:
-#   docker pull mcr.microsoft.com/vscode/devcontainers/go:1-bookworm
-ARG VARIANT="1.25-bookworm"
-FROM mcr.microsoft.com/vscode/devcontainers/go:${VARIANT}
+# Go Development Container
+# https://github.com/devcontainers/images/tree/main/src/go
 
-# [Choice] Node.js version: none, lts/*, 16, 14, 12, 10
+ARG VARIANT="1.26-trixie"
+FROM mcr.microsoft.com/devcontainers/go:${VARIANT}
+
+# =============================================================================
+# Install Go (override base image version)
+# 
+# Microsoft の devcontainer イメージは Go の最新バージョンへの追従が遅いため、
+# gosec が要求するバージョンとイメージ同梱のバージョンに差分が生じることがある。
+# その場合、gosec が Go 標準ライブラリの脆弱性を検出してビルドが失敗するため、
+# ここで明示的に最新バージョンをインストールしている。
+#
+# 例: devcontainer イメージ同梱 → Go 1.26.1
+#     gosec が要求            → Go 1.26.2
+# =============================================================================
+ARG GO_VERSION="1.26.2"
+RUN rm -rf /usr/local/go \
+  && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-$(dpkg --print-architecture).tar.gz" \
+  | tar -C /usr/local -xz
+
+
+# =============================================================================
+# Node.js installation (optional)
+# =============================================================================
 ARG NODE_VERSION="none"
-RUN if [ "${NODE_VERSION}" != "none" ]; then su vscode -c "umask 0002 && . /usr/local/share/nvm/nvm.sh && nvm install ${NODE_VERSION}"; fi
+RUN if [ "${NODE_VERSION}" != "none" ]; then \
+  su vscode -c "umask 0002 && . /usr/local/share/nvm/nvm.sh && nvm install ${NODE_VERSION} 2>&1"; \
+  fi
 
-# System packages (consolidated into a single apt-get update)
-RUN apt-get update \
-  && export DEBIAN_FRONTEND=noninteractive \
-  && apt-get -y install --no-install-recommends \
-  uuid-runtime \
-  tree \
-  bash-completion \
-  wget \
+# =============================================================================
+# System packages (single apt layer)
+# =============================================================================
+RUN rm -f /etc/apt/sources.list.d/yarn.list \
+  && apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends \
   apt-transport-https \
+  bash-completion \
+  curl \
+  gettext-base \
   gnupg \
   lsb-release \
   python3 \
   python3-venv \
-  gettext-base \
-  && apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+  tree \
+  uuid-runtime \
+  wget \
+  && apt-get autoremove -y \
+  && apt-get clean -y \
+  && rm -rf /var/lib/apt/lists/*
 
-# Trivy (vulnerability scanner)
-RUN wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /usr/share/keyrings/trivy.gpg \
-  && echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/trivy.list \
-  && apt-get update \
-  && apt-get -y install --no-install-recommends trivy \
-  && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+# =============================================================================
+# uv (Rust 製 Python パッケージマネージャ)
+#
+# pip / pip-tools を経由せずバイナリ単体で動作するため、
+# Python パッケージマネージャ自体を介したサプライチェーン攻撃のリスクを緩和できる。
+# =============================================================================
+COPY --from=ghcr.io/astral-sh/uv:0.11.5 /uv /usr/local/bin/uv
 
-# yq (golang version)
-ENV YQ_VERSION=v4.25.3
-RUN ARCH=$(arch) \
-  && if [ "$ARCH" = "aarch64" ]; then BINARY="yq_linux_arm64"; else BINARY="yq_linux_amd64"; fi \
-  && curl -L -o /tmp/${BINARY}.tar.gz https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${BINARY}.tar.gz \
-  && tar -zxf /tmp/${BINARY}.tar.gz -C /tmp \
-  && mv /tmp/${BINARY} /usr/bin/yq \
-  && rm -f /tmp/${BINARY}.tar.gz
+# =============================================================================
+# Python virtual environment and packages
+# python は、 aws sam CLI が python ベースであるため、インストールする。
+# マニュアルで追加するパッケージは、requirements.in に登録を行う。
+# requirements.txt は以下のコマンドで、サプライチェーン全体に対するピン留めを行う。
+# uv pip compile --generate-hashes -o requirements.txt requirements.in
+# =============================================================================
+COPY requirements.txt /tmp/requirements.txt
+RUN uv venv /venv \
+  && uv pip install --python /venv/bin/python --require-hashes --no-cache -r /tmp/requirements.txt \
+  && rm /tmp/requirements.txt
 
-# Go tools (single layer)
-RUN go install golang.org/x/tools/cmd/godoc@latest \
+ENV PATH=/venv/bin:${PATH} \
+  VIRTUAL_ENV=/venv
+
+#   warrant \
+#   pyjwt
+
+
+# =============================================================================
+# Go tools (single layer for efficiency)
+# =============================================================================
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin \
+  && go install golang.org/x/tools/cmd/godoc@latest \
+  && go install golang.org/x/tools/cmd/goimports@latest \
+  && go install golang.org/x/vuln/cmd/govulncheck@latest \
   && go install github.com/boumenot/gocover-cobertura@latest \
   && go install go.uber.org/mock/mockgen@latest \
   && go install github.com/securego/gosec/v2/cmd/gosec@latest \
-  && go install golang.org/x/tools/cmd/goimports@latest \
-  && go install golang.org/x/lint/golint@latest \
   && go install github.com/google/go-licenses@latest \
-  && go install golang.org/x/vuln/cmd/govulncheck@latest
+  && go install github.com/mikefarah/yq/v4@latest \
+  && rm -rf /go/pkg/mod/cache
 
-# Python virtual environment
-RUN python3 -m venv /opt/venv \
-  && /opt/venv/bin/pip install --upgrade pip \
-  && /opt/venv/bin/pip install \
-  cfn-lint \
-  boto3 \
-  warrant \
-  pyjwt
+# =============================================================================
+# trivy
+# trivy は、 version 0.69.3 でピン留め
+# =============================================================================
+ENV TRIVY_VERSION="0.69.3"
+RUN DPKG_ARCH=$(dpkg --print-architecture) \
+  && if [ "$DPKG_ARCH" = "amd64" ]; then TRIVY_ARCH="64bit"; elif [ "$DPKG_ARCH" = "arm64" ]; then TRIVY_ARCH="ARM64"; else TRIVY_ARCH="$DPKG_ARCH"; fi \
+  && TRIVY_DEB="trivy_${TRIVY_VERSION}_Linux-${TRIVY_ARCH}.deb" \
+  && curl -fsSL -o /tmp/${TRIVY_DEB} \
+  "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${TRIVY_DEB}" \
+  && curl -fsSL -o /tmp/trivy_checksums.txt \
+  "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_checksums.txt" \
+  && cd /tmp \
+  && grep "${TRIVY_DEB}" trivy_checksums.txt | sha256sum -c - \
+  && dpkg -i ${TRIVY_DEB} \
+  && rm -f ${TRIVY_DEB} trivy_checksums.txt
 
-ENV PATH=/opt/venv/bin:${PATH} \
-  VIRTUAL_ENV=/opt/venv
-
-# Node.js global packages
+# =============================================================================
+# Node.js global packages (OpenAPI / JSON Schema tools)
+# =============================================================================
 # swagger-merger : openapi.yaml を分割管理する際のファイル統合ツール
-# swagger-cli :    openapi.yaml の validation tool (spectral へ移行予定)
+# swagger-cli :    openapi.yaml の validation tool (spectral へ以降予定)
 # spectral :       openapi.yaml の validation tool
 # newman :         E2E Test Tool
-RUN npm install -g swagger-merger \
+# ajv-cli :        json schema の validation tool
+# ajv-formats :    ajv-cli で用いる format 定義プラグイン
+RUN npm install -g \
+  ajv-cli \
+  ajv-formats \
+  newman \
+  swagger-merger \
   swagger-cli \
-  @stoplight/spectral \
-  newman
+  @redocly/cli \
+  @stoplight/spectral-cli \
+  && npm cache clean --force
+
+# =============================================================================
+# Claude Code CLI (standalone binary)
+# =============================================================================
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # git-completion.bash
 RUN mkdir -p /root/.config/git && \

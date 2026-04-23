@@ -1,11 +1,9 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.234.0/containers/go
 {
   "name": "Go",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
-      "VARIANT": "1.25-bookworm",
+      "VARIANT": "1.26-trixie",
       "NODE_VERSION": "lts/*"
     }
   },
@@ -14,74 +12,26 @@
     "--security-opt",
     "seccomp=unconfined"
   ],
-  // Set *default* container specific settings.json values on container create.
   "customizations": {
-    // Configure properties specific to VS Code.
     "vscode": {
       "settings": {
         "editor.formatOnSave": true,
         "go.toolsManagement.checkForUpdates": "local",
         "go.useLanguageServer": true,
-        "go.gopath": "/go",
-        "mcp": {
-          "inputs": [
-            {
-              "type": "promptString",
-              "id": "github_token",
-              "description": "GitHub Personal Access Token",
-              "password": true
-            }
-          ],
-          "servers": {
-            "filesystem": {
-              "command": "npx",
-              "args": [
-                "@modelcontextprotocol/server-filesystem",
-                "/workspaces/back-end"
-              ]
-            },
-            "filesystem-tmp": {
-              "command": "npx",
-              "args": [
-                "@modelcontextprotocol/server-filesystem",
-                "/workspaces/back-end/mcp-server/tmp"
-              ]
-            },
-            "memory": {
-              "command": "npx",
-              "args": [
-                "@modelcontextprotocol/server-memory"
-              ]
-            },
-            "github": {
-              "command": "npx",
-              "args": [
-                "@modelcontextprotocol/server-github"
-              ],
-              "env": {
-                "GITHUB_TOKEN": "${input:github_token}"
-              }
-            }
-          }
-        }
+        "go.gopath": "/go"
       },
       "extensions": [
-        "golang.Go",
         "eamodio.gitlens",
         "foxundermoon.shell-format",
-        "ms-vsliveshare.vsliveshare",
+        "golang.go",
         "shd101wyy.markdown-preview-enhanced"
       ]
     }
   },
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // "forwardPorts": [],
-  // Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
   "remoteUser": "root",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/aws-cli:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/anthropics/devcontainer-features/claude-code:latest": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   }
 }

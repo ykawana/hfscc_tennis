@@ -1,0 +1,5 @@
+autopep8==2.3.2
+aws-sam-cli==1.155.2
+boto3==1.42.59
+cfn-lint==1.45.0
+flake8==7.3.0
